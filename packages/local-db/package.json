@@ -1,0 +1,15 @@
+{
+    "name": "@repo/local-db",
+    "version": "0.0.0",
+    "main": "index.ts",
+    "scripts": {
+        "lint": "eslint ."
+    },
+    "dependencies": {
+        "@nozbe/watermelondb": "latest"
+    },
+    "devDependencies": {
+        "typescript": "latest",
+        "@babel/plugin-proposal-decorators": "latest"
+    }
+}

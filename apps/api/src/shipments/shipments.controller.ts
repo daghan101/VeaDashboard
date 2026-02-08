@@ -1,0 +1,50 @@
+import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { ShipmentsService } from './shipments.service';
+import { CreateShipmentDto } from './dto/create-shipment.dto';
+import { AddShipmentItemDto } from './dto/add-shipment-item.dto';
+import { ShipmentStatus } from '@repo/database';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+
+@Controller('shipments')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+export class ShipmentsController {
+    constructor(private readonly shipmentsService: ShipmentsService) { }
+
+    @Post()
+    @Roles('Admin')
+    create(@Body() createShipmentDto: CreateShipmentDto) {
+        return this.shipmentsService.create(createShipmentDto);
+    }
+
+    @Get()
+    findAll(@Query('status') status?: ShipmentStatus, @Query('vendorId') vendorId?: string) {
+        return this.shipmentsService.findAll({ status, vendorId });
+    }
+
+    @Get(':id')
+    findOne(@Param('id') id: string) {
+        return this.shipmentsService.findOne(id);
+    }
+
+    // Sevkiyat akışı: PENDING → WEIGHING → COMPLETED
+
+    @Post(':id/items')
+    @Roles('Admin', 'Worker')
+    addItem(@Param('id') id: string, @Body() addItemDto: AddShipmentItemDto) {
+        return this.shipmentsService.addItem(id, addItemDto);
+    }
+
+    @Patch(':id/start-weighing')
+    @Roles('Admin', 'Worker')
+    startWeighing(@Param('id') id: string) {
+        return this.shipmentsService.startWeighing(id);
+    }
+
+    @Patch(':id/complete')
+    @Roles('Admin')
+    complete(@Param('id') id: string) {
+        return this.shipmentsService.complete(id);
+    }
+}
