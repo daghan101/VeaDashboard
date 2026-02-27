@@ -32,10 +32,10 @@ export default function CreateOrderPage() {
             try {
                 const [custRes, prodRes] = await Promise.all([
                     api.get('/customers'),
-                    api.get('/products'),
+                    api.get('/products', { params: { take: 1000 } }),
                 ]);
                 setCustomers(custRes.data);
-                setProducts(prodRes.data);
+                setProducts(prodRes.data.data ?? []);
             } catch {
                 message.error('Veriler yüklenemedi');
             }

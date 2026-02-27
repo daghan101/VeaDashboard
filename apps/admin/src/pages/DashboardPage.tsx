@@ -40,9 +40,9 @@ export default function DashboardPage() {
                 ]);
 
                 setStats({
-                    pendingOrders: Array.isArray(pendingRes.data) ? pendingRes.data.length : 0,
-                    confirmedOrders: Array.isArray(confirmedRes.data) ? confirmedRes.data.length : 0,
-                    totalProducts: Array.isArray(productsRes.data) ? productsRes.data.length : 0,
+                    pendingOrders: pendingRes.data?.meta?.total ?? 0,
+                    confirmedOrders: confirmedRes.data?.meta?.total ?? 0,
+                    totalProducts: productsRes.data?.meta?.total ?? 0,
                     totalCustomers: Array.isArray(customersRes.data) ? customersRes.data.length : 0,
                     totalVendors: Array.isArray(vendorsRes.data) ? vendorsRes.data.length : 0,
                     inventoryItems: Array.isArray(inventoryRes.data) ? inventoryRes.data.length : 0,

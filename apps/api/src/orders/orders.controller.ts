@@ -48,10 +48,12 @@ export class OrdersController {
     findAll(
         @Query('status') status?: OrderStatus,
         @Query('customerId') customerId?: string,
+        @Query('skip') skip?: number,
+        @Query('take') take?: number,
         @Req() req?: Request & { user: AuthenticatedUser },
     ) {
         const currentUser = req?.user;
-        return this.ordersService.findAll({ status, customerId }, currentUser);
+        return this.ordersService.findAll({ status, customerId, skip, take }, currentUser);
     }
 
     /**

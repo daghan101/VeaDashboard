@@ -24,8 +24,15 @@ export class ProductsController {
      * Ürün listesi - Tüm giriş yapmış kullanıcılar (Katalog)
      */
     @Get()
-    findAll(@Query('category') category?: string) {
-        return this.productsService.findAll(category);
+    findAll(
+        @Query('category') category?: string,
+        @Query('skip') skip?: number,
+        @Query('take') take?: number,
+        @Query('includeInactive') includeInactive?: boolean,
+    ) {
+        // String olarak gelen boolean query'i map'liyoruz
+        const parseIncludeInactive = includeInactive?.toString() === 'true';
+        return this.productsService.findAll(category, skip, take, parseIncludeInactive);
     }
 
     /**

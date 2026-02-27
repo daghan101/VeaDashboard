@@ -76,10 +76,10 @@ export default function ShipmentDetailPage() {
         try {
             const [shipRes, prodRes] = await Promise.all([
                 api.get(`/shipments/${id}`),
-                api.get('/products'),
+                api.get('/products', { params: { take: 1000 } }),
             ]);
             setShipment(shipRes.data);
-            setProducts(prodRes.data);
+            setProducts(prodRes.data.data ?? []);
         } catch {
             message.error('Sevkiyat yüklenemedi');
         } finally {

@@ -58,7 +58,7 @@ export default function CustomerDetailPage() {
                     api.get('/orders', { params: { customerId: id } }),
                 ]);
                 setCustomer(custRes.data);
-                setOrders(ordersRes.data);
+                setOrders(ordersRes.data.data ?? []);
             } catch {
                 message.error('Müşteri bilgileri yüklenemedi');
             } finally {

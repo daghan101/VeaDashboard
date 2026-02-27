@@ -13,7 +13,7 @@ interface Vendor {
     id: string;
     name: string;
     phone: string | null;
-    balanceTry: string;
+    totalBalance: string;
 }
 
 export default function VendorsPage() {

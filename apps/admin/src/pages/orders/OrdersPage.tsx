@@ -46,15 +46,25 @@ export default function OrdersPage() {
     const [statusFilter, setStatusFilter] = useState<string | undefined>(
         searchParams.get('status') || undefined,
     );
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const [pageSize, setPageSize] = useState(20);
     const navigate = useNavigate();
 
-    const fetchOrders = async (status?: string) => {
+    const fetchOrders = async (status?: string, page: number = 1, size: number = 20) => {
         setLoading(true);
         try {
-            const params: Record<string, string> = {};
+            const params: Record<string, string | number> = {
+                skip: (page - 1) * size,
+                take: size
+            };
             if (status) params.status = status;
+
             const res = await api.get('/orders', { params });
-            setOrders(res.data);
+            setOrders(res.data.data);
+            setTotalCount(res.data.meta.total);
+            setCurrentPage(page);
+            setPageSize(size);
         } catch {
             message.error('Siparişler yüklenemedi');
         } finally {
@@ -63,7 +73,7 @@ export default function OrdersPage() {
     };
 
     useEffect(() => {
-        fetchOrders(statusFilter);
+        fetchOrders(statusFilter, 1, pageSize);
     }, [statusFilter]);
 
     const columns: ColumnsType<Order> = [
@@ -124,7 +134,7 @@ export default function OrdersPage() {
                         onChange={(val) => setStatusFilter(val)}
                         options={Object.entries(statusLabels).map(([value, label]) => ({ value, label }))}
                     />
-                    <Button icon={<ReloadOutlined />} onClick={() => fetchOrders(statusFilter)}>
+                    <Button icon={<ReloadOutlined />} onClick={() => fetchOrders(statusFilter, currentPage, pageSize)}>
                         Yenile
                     </Button>
                     <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/orders/new')}>
@@ -138,7 +148,13 @@ export default function OrdersPage() {
                 dataSource={orders}
                 rowKey="id"
                 loading={loading}
-                pagination={{ pageSize: 20, showSizeChanger: true }}
+                pagination={{
+                    current: currentPage,
+                    pageSize: pageSize,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    onChange: (page, size) => fetchOrders(statusFilter, page, size),
+                }}
                 onRow={(record) => ({
                     onClick: () => navigate(`/orders/${record.id}`),
                     style: { cursor: 'pointer' },

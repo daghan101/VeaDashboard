@@ -65,7 +65,7 @@ export class OrdersService {
      * Sipariş listesi - Customer rolü sadece kendi siparişlerini görebilir
      */
     async findAll(
-        filters: { status?: OrderStatus; customerId?: string },
+        filters: { status?: OrderStatus; customerId?: string; skip?: number; take?: number },
         currentUser?: AuthenticatedUser,
     ) {
         // Customer rolü sadece kendi siparişlerini görebilir
@@ -77,18 +77,32 @@ export class OrdersService {
             effectiveCustomerId = currentUser.customerId;
         }
 
-        const orders = await this.prisma.order.findMany({
-            where: {
-                ...(filters.status && { status: filters.status }),
-                ...(effectiveCustomerId && { customerId: effectiveCustomerId }),
-            },
-            include: {
-                customer: { select: { id: true, businessName: true } },
-                items: { include: { product: { select: { id: true, name: true, category: true } } } },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
-        return orders.map((o) => this.serializeOrder(o));
+        const skip = filters.skip ? Number(filters.skip) : 0;
+        const take = filters.take ? Number(filters.take) : 50;
+
+        const whereParams = {
+            ...(filters.status && { status: filters.status }),
+            ...(effectiveCustomerId && { customerId: effectiveCustomerId }),
+        };
+
+        const [orders, total] = await Promise.all([
+            this.prisma.order.findMany({
+                where: whereParams,
+                include: {
+                    customer: { select: { id: true, businessName: true } },
+                    items: { include: { product: { select: { id: true, name: true, category: true } } } },
+                },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take,
+            }),
+            this.prisma.order.count({ where: whereParams }),
+        ]);
+
+        return {
+            data: orders.map((o) => this.serializeOrder(o)),
+            meta: { total, skip, take }
+        };
     }
 
     /**
@@ -131,7 +145,13 @@ export class OrdersService {
             throw new BadRequestException('Sadece PENDING durumundaki siparişler onaylanabilir');
         }
 
-        // Her item için fiyat ve miktar güncelle
+        // Her item için detaylı mantıksal doğrulama ve fiyat/miktar güncellemesi
+        for (const item of confirmDto.items) {
+            if (item.confirmedQuantity < 0 || item.unitPrice < 0) {
+                throw new BadRequestException('Miktar ve birim fiyat negatif olamaz.');
+            }
+        }
+
         const itemUpdates = confirmDto.items.map((item) =>
             this.prisma.orderItem.update({
                 where: { id: item.orderItemId },
@@ -237,8 +257,18 @@ export class OrdersService {
             throw new BadRequestException('Sadece SHIPPED durumundaki siparişler teslim edilebilir');
         }
 
-        // Müşteri bakiyesine borç yaz
-        await this.prisma.$transaction([
+        const finalAmount = order.totalAmount || 0;
+
+        // Siparişi onaylayan ID veya oluşturan ID'yi referans al
+        // Note: System-level transactions might require a default account mapping if we extend this.
+        const defaultAdminUserId = order.createdById;
+
+        // Bulunamazsa TR Cüzdanı arıyoruz (veya ilk TRY Account'unu)
+        const tryAccount = await this.prisma.account.findFirst({
+            where: { currency: { code: 'TRY' } }
+        });
+
+        const txParams: any[] = [
             this.prisma.order.update({
                 where: { id },
                 data: {
@@ -250,10 +280,30 @@ export class OrdersService {
             this.prisma.customer.update({
                 where: { id: order.customerId },
                 data: {
-                    balanceTry: { increment: order.totalAmount || 0 },
+                    balanceTry: { increment: finalAmount },
                 },
             }),
-        ]);
+        ];
+
+        // Eğer sistemde tanımlı bir Merkez hesap varsa finans kaydı atıyoruz
+        if (tryAccount && finalAmount > 0) {
+            txParams.push(
+                this.prisma.transaction.create({
+                    data: {
+                        accountId: tryAccount.id,
+                        userId: defaultAdminUserId,
+                        referenceId: order.id,
+                        referenceType: 'ORDER',
+                        amount: finalAmount,
+                        type: 'COLLECTION',
+                        isConfirmed: true,
+                        description: `Sipariş Teslimatı: ${order.customer?.businessName || 'Bilinmeyen Müşteri'}`
+                    }
+                })
+            );
+        }
+
+        await this.prisma.$transaction(txParams);
 
         return this.findOne(id);
     }

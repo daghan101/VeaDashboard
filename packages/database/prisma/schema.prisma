@@ -106,6 +106,7 @@ model Product {
   shipmentItems ShipmentItem[]
   orderItems    OrderItem[]
 
+  @@unique([name, category])
   @@map("products")
 }
 

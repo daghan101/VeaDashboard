@@ -43,15 +43,26 @@ export default function ProductsPage() {
     const [editing, setEditing] = useState<Product | null>(null);
     const [saving, setSaving] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
+    const [includeInactive, setIncludeInactive] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalCount, setTotalCount] = useState(0);
+    const [pageSize, setPageSize] = useState(20);
     const [form] = Form.useForm();
 
-    const fetchProducts = async (category?: string) => {
+    const fetchProducts = async (categoryStr?: string, page: number = 1, size: number = 20, showInactive: boolean = false) => {
         setLoading(true);
         try {
-            const params: Record<string, string> = {};
-            if (category) params.category = category;
+            const params: Record<string, string | number | boolean> = {
+                skip: (page - 1) * size,
+                take: size,
+                includeInactive: showInactive
+            };
+            if (categoryStr) params.category = categoryStr;
             const res = await api.get('/products', { params });
-            setProducts(res.data);
+            setProducts(res.data.data);
+            setTotalCount(res.data.meta.total);
+            setCurrentPage(page);
+            setPageSize(size);
         } catch {
             message.error('Ürünler yüklenemedi');
         } finally {
@@ -60,8 +71,8 @@ export default function ProductsPage() {
     };
 
     useEffect(() => {
-        fetchProducts(categoryFilter);
-    }, [categoryFilter]);
+        fetchProducts(categoryFilter, 1, pageSize, includeInactive);
+    }, [categoryFilter, includeInactive]);
 
     const openCreate = () => {
         setEditing(null);
@@ -95,7 +106,7 @@ export default function ProductsPage() {
                 message.success('Ürün oluşturuldu');
             }
             setModalOpen(false);
-            fetchProducts(categoryFilter);
+            fetchProducts(categoryFilter, currentPage, pageSize, includeInactive);
         } catch {
             message.error('İşlem başarısız');
         } finally {
@@ -106,8 +117,8 @@ export default function ProductsPage() {
     const handleDelete = async (id: string) => {
         try {
             await api.delete(`/products/${id}`);
-            message.success('Ürün silindi');
-            fetchProducts(categoryFilter);
+            message.success('Ürün pasife alındı');
+            fetchProducts(categoryFilter, currentPage, pageSize, includeInactive);
         } catch {
             message.error('Silme başarısız');
         }
@@ -168,14 +179,16 @@ export default function ProductsPage() {
             render: (_, record) => (
                 <Space size="small">
                     <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)} />
-                    <Popconfirm
-                        title="Bu ürünü silmek istediğinize emin misiniz?"
-                        onConfirm={() => handleDelete(record.id)}
-                        okText="Evet"
-                        cancelText="Hayır"
-                    >
-                        <Button type="text" size="small" danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
+                    {record.isActive && (
+                        <Popconfirm
+                            title="Bu ürünü silmek (pasife almak) istediğinize emin misiniz?"
+                            onConfirm={() => handleDelete(record.id)}
+                            okText="Evet"
+                            cancelText="Hayır"
+                        >
+                            <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                        </Popconfirm>
+                    )}
                 </Space>
             ),
         },
@@ -186,6 +199,12 @@ export default function ProductsPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <Title level={4} style={{ margin: 0 }}>Ürünler</Title>
                 <Space>
+                    <Switch
+                        checkedChildren="Tümünü Göster"
+                        unCheckedChildren="Aktifler"
+                        checked={includeInactive}
+                        onChange={(val) => setIncludeInactive(val)}
+                    />
                     <Select
                         placeholder="Kategori"
                         allowClear
@@ -194,7 +213,7 @@ export default function ProductsPage() {
                         onChange={(val) => setCategoryFilter(val)}
                         options={categories}
                     />
-                    <Button icon={<ReloadOutlined />} onClick={() => fetchProducts(categoryFilter)}>Yenile</Button>
+                    <Button icon={<ReloadOutlined />} onClick={() => fetchProducts(categoryFilter, currentPage, pageSize, includeInactive)}>Yenile</Button>
                     <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Yeni Ürün</Button>
                 </Space>
             </div>
@@ -204,7 +223,13 @@ export default function ProductsPage() {
                 dataSource={products}
                 rowKey="id"
                 loading={loading}
-                pagination={{ pageSize: 20 }}
+                pagination={{
+                    current: currentPage,
+                    pageSize: pageSize,
+                    total: totalCount,
+                    showSizeChanger: true,
+                    onChange: (page, size) => fetchProducts(categoryFilter, page, size, includeInactive),
+                }}
                 size="middle"
             />
 
