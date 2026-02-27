@@ -9,7 +9,26 @@ import { Decimal } from '@prisma/client/runtime/library';
 export class ShipmentsService {
     constructor(private readonly prisma: PrismaService) { }
 
+    /** Prisma Decimal → Number dönüşümü */
+    private serializeShipment(shipment: any) {
+        return {
+            ...shipment,
+            declaredTotal: shipment.declaredTotal ? Number(shipment.declaredTotal) : null,
+            actualTotal: shipment.actualTotal ? Number(shipment.actualTotal) : null,
+            items: shipment.items?.map((item: any) => ({
+                ...item,
+                expectedWeight: item.expectedWeight ? Number(item.expectedWeight) : null,
+                actualWeight: item.actualWeight ? Number(item.actualWeight) : null,
+                unitPrice: item.unitPrice ? Number(item.unitPrice) : null,
+                taxRate: item.taxRate ? Number(item.taxRate) : null,
+            })),
+        };
+    }
+
     async create(createShipmentDto: CreateShipmentDto) {
+        if (!createShipmentDto.createdById) {
+            throw new BadRequestException('createdById gereklidir');
+        }
         return this.prisma.shipment.create({
             data: {
                 vendorId: createShipmentDto.vendorId,
@@ -22,7 +41,7 @@ export class ShipmentsService {
     }
 
     async findAll(filters: { status?: ShipmentStatus; vendorId?: string }) {
-        return this.prisma.shipment.findMany({
+        const shipments = await this.prisma.shipment.findMany({
             where: {
                 ...(filters.status && { status: filters.status }),
                 ...(filters.vendorId && { vendorId: filters.vendorId }),
@@ -33,9 +52,10 @@ export class ShipmentsService {
             },
             orderBy: { createdAt: 'desc' },
         });
+        return shipments.map((s) => this.serializeShipment(s));
     }
 
-    async findOne(id: string) {
+    private async findOneRaw(id: string) {
         const shipment = await this.prisma.shipment.findUnique({
             where: { id },
             include: {
@@ -55,6 +75,11 @@ export class ShipmentsService {
         }
 
         return shipment;
+    }
+
+    async findOne(id: string) {
+        const shipment = await this.findOneRaw(id);
+        return this.serializeShipment(shipment);
     }
 
     /**
@@ -104,7 +129,7 @@ export class ShipmentsService {
      * Sevkiyatı tamamla - Stok güncelle, tedarikçi bakiyesini artır
      */
     async complete(id: string) {
-        const shipment = await this.findOne(id);
+        const shipment = await this.findOneRaw(id);
 
         if (shipment.status !== 'WEIGHING') {
             throw new BadRequestException('Sadece WEIGHING durumundaki sevkiyatlar tamamlanabilir');
@@ -145,7 +170,7 @@ export class ShipmentsService {
                     completedAt: new Date(),
                 },
             }),
-            // Tedarikçi bakiyesini artır (alacak)
+            // Tedarikçi bakiyesini artır (borç — TL cinsinden)
             this.prisma.vendor.update({
                 where: { id: shipment.vendorId },
                 data: {

@@ -15,10 +15,30 @@ interface AuthenticatedUser {
 export class OrdersService {
     constructor(private readonly prisma: PrismaService) { }
 
+    /** Prisma Decimal → Number dönüşümü */
+    private serializeOrder(order: any) {
+        return {
+            ...order,
+            totalAmount: order.totalAmount ? Number(order.totalAmount) : null,
+            items: order.items?.map((item: any) => ({
+                ...item,
+                requestedQuantity: Number(item.requestedQuantity),
+                confirmedQuantity: item.confirmedQuantity ? Number(item.confirmedQuantity) : null,
+                deliveredQuantity: item.deliveredQuantity ? Number(item.deliveredQuantity) : null,
+                unitPrice: item.unitPrice ? Number(item.unitPrice) : null,
+                subtotal: item.subtotal ? Number(item.subtotal) : null,
+            })),
+        };
+    }
+
     async create(createOrderDto: CreateOrderDto) {
         const { customerId, createdById, items, notes, source } = createOrderDto;
 
-        return this.prisma.order.create({
+        if (!createdById) {
+            throw new BadRequestException('createdById gereklidir');
+        }
+
+        const order = await this.prisma.order.create({
             data: {
                 customerId,
                 createdById,
@@ -38,6 +58,7 @@ export class OrdersService {
                 customer: true,
             },
         });
+        return this.serializeOrder(order);
     }
 
     /**
@@ -56,7 +77,7 @@ export class OrdersService {
             effectiveCustomerId = currentUser.customerId;
         }
 
-        return this.prisma.order.findMany({
+        const orders = await this.prisma.order.findMany({
             where: {
                 ...(filters.status && { status: filters.status }),
                 ...(effectiveCustomerId && { customerId: effectiveCustomerId }),
@@ -67,6 +88,7 @@ export class OrdersService {
             },
             orderBy: { createdAt: 'desc' },
         });
+        return orders.map((o) => this.serializeOrder(o));
     }
 
     /**
@@ -95,7 +117,7 @@ export class OrdersService {
             }
         }
 
-        return order;
+        return this.serializeOrder(order);
     }
 
     /**
@@ -178,7 +200,7 @@ export class OrdersService {
             }
 
             // Siparişi güncelle
-            return tx.order.update({
+            const updated = await tx.order.update({
                 where: { id },
                 data: { status: 'PREPARING' },
                 include: {
@@ -186,6 +208,7 @@ export class OrdersService {
                     items: { include: { product: true } },
                 },
             });
+            return this.serializeOrder(updated);
         });
     }
 
@@ -196,7 +219,7 @@ export class OrdersService {
             throw new BadRequestException('Sadece PREPARING durumundaki siparişler sevk edilebilir');
         }
 
-        return this.prisma.order.update({
+        const updated = await this.prisma.order.update({
             where: { id },
             data: {
                 status: 'SHIPPED',
@@ -204,6 +227,7 @@ export class OrdersService {
             },
             include: { items: true, customer: true },
         });
+        return this.serializeOrder(updated);
     }
 
     async deliver(id: string) {

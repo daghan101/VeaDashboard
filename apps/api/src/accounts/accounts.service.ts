@@ -20,11 +20,15 @@ export class AccountsService {
      * canSeeRestricted: true → tüm hesapları görür
      */
     async findAll(canSeeRestricted = false) {
-        return this.prisma.account.findMany({
+        const accounts = await this.prisma.account.findMany({
             where: canSeeRestricted ? {} : { isRestricted: false },
             include: { currency: true },
             orderBy: { name: 'asc' },
         });
+        return accounts.map((a) => ({
+            ...a,
+            balance: Number(a.balance),
+        }));
     }
 
     async findOne(id: string) {
@@ -43,7 +47,10 @@ export class AccountsService {
             throw new NotFoundException(`Hesap bulunamadı: ${id}`);
         }
 
-        return account;
+        return {
+            ...account,
+            balance: Number(account.balance),
+        };
     }
 
     async update(id: string, updateAccountDto: UpdateAccountDto) {

@@ -36,6 +36,8 @@ export class OrdersController {
         if (req.user.role === 'Customer' && req.user.customerId) {
             createOrderDto.customerId = req.user.customerId;
         }
+        // createdById'yi JWT'den otomatik al
+        createOrderDto.createdById = req.user.id;
         return this.ordersService.create(createOrderDto);
     }
 
@@ -70,7 +72,12 @@ export class OrdersController {
      */
     @Patch(':id/confirm')
     @Roles('Admin')
-    confirm(@Param('id') id: string, @Body() confirmDto: ConfirmOrderDto) {
+    confirm(
+        @Param('id') id: string,
+        @Body() confirmDto: ConfirmOrderDto,
+        @Req() req: Request & { user: AuthenticatedUser },
+    ) {
+        confirmDto.confirmedById = req.user.id;
         return this.ordersService.confirm(id, confirmDto);
     }
 

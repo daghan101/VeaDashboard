@@ -23,50 +23,37 @@ export class TransactionsService {
             throw new NotFoundException(`Hesap bulunamadı: ${accountId}`);
         }
 
-        // Bakiye değişikliği
-        let balanceChange = amount;
-        if (type === 'PAYMENT' || type === 'EXPENSE') {
-            balanceChange = -amount;
-        }
-
-        // Transaction oluştur ve bakiyeyi güncelle
-        const [transaction] = await this.prisma.$transaction([
-            this.prisma.transaction.create({
-                data: {
-                    accountId,
-                    userId,
-                    amount,
-                    type,
-                    referenceId,
-                    referenceType,
-                    maturityDate: maturityDate ? new Date(maturityDate) : null,
-                    description,
-                    isConfirmed: false,
-                },
-                include: { account: true, user: { select: { id: true, name: true } } },
-            }),
-            this.prisma.account.update({
-                where: { id: accountId },
-                data: { balance: { increment: balanceChange } },
-            }),
-        ]);
-
-        return transaction;
+        // İşlem oluştur — bakiye henüz güncellenmez, onay sonrası güncellenir
+        return this.prisma.transaction.create({
+            data: {
+                accountId,
+                userId,
+                amount,
+                type,
+                referenceId,
+                referenceType,
+                maturityDate: maturityDate ? new Date(maturityDate) : null,
+                description,
+                isConfirmed: false,
+            },
+            include: { account: true, user: { select: { id: true, name: true } } },
+        });
     }
 
     async findAll(filters: { accountId?: string; type?: TransactionType; isConfirmed?: boolean }) {
-        return this.prisma.transaction.findMany({
+        const transactions = await this.prisma.transaction.findMany({
             where: {
                 ...(filters.accountId && { accountId: filters.accountId }),
                 ...(filters.type && { type: filters.type }),
                 ...(filters.isConfirmed !== undefined && { isConfirmed: filters.isConfirmed }),
             },
             include: {
-                account: { select: { id: true, name: true } },
+                account: { select: { id: true, name: true, currency: { select: { symbol: true } } } },
                 user: { select: { id: true, name: true } },
             },
             orderBy: { createdAt: 'desc' },
         });
+        return transactions.map((t) => ({ ...t, amount: Number(t.amount) }));
     }
 
     async findOne(id: string) {
@@ -82,7 +69,7 @@ export class TransactionsService {
             throw new NotFoundException(`İşlem bulunamadı: ${id}`);
         }
 
-        return transaction;
+        return { ...transaction, amount: Number(transaction.amount) };
     }
 
     async confirm(id: string) {
@@ -92,10 +79,24 @@ export class TransactionsService {
             throw new BadRequestException('Bu işlem zaten onaylanmış');
         }
 
-        return this.prisma.transaction.update({
-            where: { id },
-            data: { isConfirmed: true },
-            include: { account: true },
-        });
+        // Bakiye değişikliği — sadece onay anında uygulanır
+        let balanceChange = Number(transaction.amount);
+        if (transaction.type === 'PAYMENT' || transaction.type === 'EXPENSE') {
+            balanceChange = -balanceChange;
+        }
+
+        const [updated] = await this.prisma.$transaction([
+            this.prisma.transaction.update({
+                where: { id },
+                data: { isConfirmed: true },
+                include: { account: true },
+            }),
+            this.prisma.account.update({
+                where: { id: transaction.accountId },
+                data: { balance: { increment: balanceChange } },
+            }),
+        ]);
+
+        return updated;
     }
 }

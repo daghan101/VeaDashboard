@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ShipmentsService } from './shipments.service';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
@@ -6,6 +6,12 @@ import { AddShipmentItemDto } from './dto/add-shipment-item.dto';
 import { ShipmentStatus } from '@repo/database';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { Request } from 'express';
+
+interface AuthenticatedUser {
+    id: string;
+    role: string;
+}
 
 @Controller('shipments')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -14,7 +20,12 @@ export class ShipmentsController {
 
     @Post()
     @Roles('Admin')
-    create(@Body() createShipmentDto: CreateShipmentDto) {
+    create(
+        @Body() createShipmentDto: CreateShipmentDto,
+        @Req() req: Request & { user: AuthenticatedUser },
+    ) {
+        // createdById'yi JWT'den otomatik al
+        createShipmentDto.createdById = req.user.id;
         return this.shipmentsService.create(createShipmentDto);
     }
 
@@ -32,7 +43,13 @@ export class ShipmentsController {
 
     @Post(':id/items')
     @Roles('Admin', 'Worker')
-    addItem(@Param('id') id: string, @Body() addItemDto: AddShipmentItemDto) {
+    addItem(
+        @Param('id') id: string,
+        @Body() addItemDto: AddShipmentItemDto,
+        @Req() req: Request & { user: AuthenticatedUser },
+    ) {
+        // weighedById'yi JWT'den otomatik al
+        addItemDto.weighedById = req.user.id;
         return this.shipmentsService.addItem(id, addItemDto);
     }
 

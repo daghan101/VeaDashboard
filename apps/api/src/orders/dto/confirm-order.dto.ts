@@ -1,4 +1,4 @@
-import { IsString, IsArray, IsNumber, ValidateNested, IsUUID, Min, ArrayMinSize } from 'class-validator';
+import { IsString, IsArray, IsNumber, IsOptional, ValidateNested, IsUUID, Min, ArrayMinSize } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class ConfirmItemDto {
@@ -16,7 +16,8 @@ class ConfirmItemDto {
 
 export class ConfirmOrderDto {
     @IsUUID()
-    confirmedById: string;
+    @IsOptional()
+    confirmedById?: string;
 
     @IsArray()
     @ArrayMinSize(1, { message: 'En az bir ürün onaylanmalıdır' })

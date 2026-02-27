@@ -19,10 +19,12 @@ export class InventoryService {
 
         if (lowStock) {
             // Stok düşük olanları filtrele (10 birimden az)
-            return inventories.filter((inv) => Number(inv.quantity) < 10);
+            return inventories
+                .filter((inv) => Number(inv.quantity) < 10)
+                .map((inv) => ({ ...inv, quantity: Number(inv.quantity) }));
         }
 
-        return inventories;
+        return inventories.map((inv) => ({ ...inv, quantity: Number(inv.quantity) }));
     }
 
     async findByProduct(productId: string) {
@@ -40,7 +42,7 @@ export class InventoryService {
             };
         }
 
-        return inventory;
+        return { ...inventory, quantity: Number(inventory.quantity) };
     }
 
     /**

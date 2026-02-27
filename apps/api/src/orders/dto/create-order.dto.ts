@@ -24,7 +24,8 @@ export class CreateOrderDto {
     customerId: string;
 
     @IsUUID()
-    createdById: string;
+    @IsOptional()
+    createdById?: string;
 
     @IsArray()
     @ArrayMinSize(1, { message: 'En az bir ürün eklenmelidir' })

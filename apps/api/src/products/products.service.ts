@@ -14,7 +14,7 @@ export class ProductsService {
     }
 
     async findAll(category?: string) {
-        return this.prisma.product.findMany({
+        const products = await this.prisma.product.findMany({
             where: {
                 isActive: true,
                 ...(category && { category }),
@@ -24,6 +24,12 @@ export class ProductsService {
             },
             orderBy: { name: 'asc' },
         });
+        return products.map((p) => ({
+            ...p,
+            avgUnitWeight: p.avgUnitWeight ? Number(p.avgUnitWeight) : null,
+            fireTolerance: p.fireTolerance ? Number(p.fireTolerance) : null,
+            inventory: p.inventory ? { ...p.inventory, quantity: Number(p.inventory.quantity) } : null,
+        }));
     }
 
     async findOne(id: string) {
@@ -36,7 +42,12 @@ export class ProductsService {
             throw new NotFoundException(`Ürün bulunamadı: ${id}`);
         }
 
-        return product;
+        return {
+            ...product,
+            avgUnitWeight: product.avgUnitWeight ? Number(product.avgUnitWeight) : null,
+            fireTolerance: product.fireTolerance ? Number(product.fireTolerance) : null,
+            inventory: product.inventory ? { ...product.inventory, quantity: Number(product.inventory.quantity) } : null,
+        };
     }
 
     async update(id: string, updateProductDto: UpdateProductDto) {

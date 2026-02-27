@@ -14,10 +14,16 @@ export class CustomersService {
     }
 
     async findAll() {
-        return this.prisma.customer.findMany({
+        const customers = await this.prisma.customer.findMany({
             where: { isActive: true },
             orderBy: { businessName: 'asc' },
         });
+        return customers.map((c) => ({
+            ...c,
+            balanceTry: Number(c.balanceTry),
+            balanceUsd: Number(c.balanceUsd),
+            balanceEur: Number(c.balanceEur),
+        }));
     }
 
     async findOne(id: string) {
@@ -35,7 +41,12 @@ export class CustomersService {
             throw new NotFoundException(`Müşteri bulunamadı: ${id}`);
         }
 
-        return customer;
+        return {
+            ...customer,
+            balanceTry: Number(customer.balanceTry),
+            balanceUsd: Number(customer.balanceUsd),
+            balanceEur: Number(customer.balanceEur),
+        };
     }
 
     async getBalance(id: string) {
@@ -54,7 +65,12 @@ export class CustomersService {
             throw new NotFoundException(`Müşteri bulunamadı: ${id}`);
         }
 
-        return customer;
+        return {
+            ...customer,
+            balanceTry: Number(customer.balanceTry),
+            balanceUsd: Number(customer.balanceUsd),
+            balanceEur: Number(customer.balanceEur),
+        };
     }
 
     async update(id: string, updateCustomerDto: UpdateCustomerDto) {

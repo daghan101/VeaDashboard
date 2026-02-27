@@ -5,7 +5,8 @@ export class CreateShipmentDto {
     vendorId: string;
 
     @IsString()
-    createdById: string;
+    @IsOptional()
+    createdById?: string;
 
     @IsNumber()
     @IsOptional()

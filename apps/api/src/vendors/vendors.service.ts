@@ -14,10 +14,14 @@ export class VendorsService {
     }
 
     async findAll() {
-        return this.prisma.vendor.findMany({
+        const vendors = await this.prisma.vendor.findMany({
             where: { isActive: true },
             orderBy: { name: 'asc' },
         });
+        return vendors.map((v) => ({
+            ...v,
+            totalBalance: Number(v.totalBalance),
+        }));
     }
 
     async findOne(id: string) {
@@ -35,7 +39,10 @@ export class VendorsService {
             throw new NotFoundException(`Tedarikçi bulunamadı: ${id}`);
         }
 
-        return vendor;
+        return {
+            ...vendor,
+            totalBalance: Number(vendor.totalBalance),
+        };
     }
 
     async getBalance(id: string) {
@@ -52,7 +59,10 @@ export class VendorsService {
             throw new NotFoundException(`Tedarikçi bulunamadı: ${id}`);
         }
 
-        return vendor;
+        return {
+            ...vendor,
+            totalBalance: Number(vendor.totalBalance),
+        };
     }
 
     async update(id: string, updateVendorDto: UpdateVendorDto) {
