@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, Req, Delete } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ShipmentsService } from './shipments.service';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
@@ -63,5 +63,11 @@ export class ShipmentsController {
     @Roles('Admin')
     complete(@Param('id') id: string) {
         return this.shipmentsService.complete(id);
+    }
+
+    @Delete(':id')
+    @Roles('Admin')
+    remove(@Param('id') id: string) {
+        return this.shipmentsService.remove(id);
     }
 }

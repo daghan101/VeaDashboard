@@ -90,12 +90,26 @@ export class ProductsService {
     }
 
     async remove(id: string) {
-        await this.findOne(id); // Existence check
+        const product = await this.findOne(id); // Existence check
 
-        // Soft delete
-        return this.prisma.product.update({
-            where: { id },
-            data: { isActive: false },
+        if (product.inventory && Number(product.inventory.quantity) > 0) {
+            throw new ConflictException(
+                `Bu ürünün stokta ${product.inventory.quantity} ${product.unit} miktarı var. Pasife almadan önce stok bakiyesini sıfırlamalısınız.`
+            );
+        }
+
+        // Soft delete the product and delete the inventory if it exists
+        return this.prisma.$transaction(async (tx) => {
+            if (product.inventory) {
+                await tx.inventory.delete({
+                    where: { productId: id },
+                });
+            }
+
+            return tx.product.update({
+                where: { id },
+                data: { isActive: false },
+            });
         });
     }
 }

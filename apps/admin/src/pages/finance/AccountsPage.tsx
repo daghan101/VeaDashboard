@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
     Card, Row, Col, Button, Modal, Form, Input, Select, Switch,
-    Typography, message, Tag, Statistic, Space,
+    Typography, message, Tag, Statistic, Space, Popconfirm,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined, BankOutlined, LockOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, BankOutlined, LockOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '../../services/api';
 
 const { Title } = Typography;
@@ -69,6 +69,17 @@ export default function AccountsPage() {
         }
     };
 
+    const handleDelete = async (id: string, name: string) => {
+        try {
+            await api.delete(`/accounts/${id}`);
+            message.success(`${name} hesabı silindi`);
+            fetchAccounts();
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.message || 'Hesap silinemedi (işlem geçmişi olabilir)';
+            message.error(errorMsg);
+        }
+    };
+
     if (loading) {
         return <div style={{ padding: 40, textAlign: 'center' }}>Yükleniyor...</div>;
     }
@@ -99,9 +110,21 @@ export default function AccountsPage() {
                                         <BankOutlined style={{ fontSize: 18, color: '#4f46e5' }} />
                                         <span style={{ fontWeight: 600, fontSize: 15 }}>{account.name}</span>
                                     </Space>
-                                    {account.isRestricted && (
-                                        <Tag icon={<LockOutlined />} color="red">Gizli</Tag>
-                                    )}
+                                    <Space>
+                                        {account.isRestricted && (
+                                            <Tag icon={<LockOutlined />} color="red">Gizli</Tag>
+                                        )}
+                                        <Popconfirm
+                                            title="Hesabı Sil"
+                                            description={`${account.name} hesabını silmek istediğinize emin misiniz?`}
+                                            onConfirm={() => handleDelete(account.id, account.name)}
+                                            okText="Evet"
+                                            cancelText="Hayır"
+                                            placement="bottomRight"
+                                        >
+                                            <Button type="text" danger icon={<DeleteOutlined />} size="small" />
+                                        </Popconfirm>
+                                    </Space>
                                 </div>
                                 <Statistic
                                     value={balance}

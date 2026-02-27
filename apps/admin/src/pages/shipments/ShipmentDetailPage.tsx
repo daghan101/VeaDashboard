@@ -6,7 +6,7 @@ import {
 } from 'antd';
 import {
     ArrowLeftOutlined, PlusOutlined, CheckCircleOutlined,
-    PlayCircleOutlined,
+    PlayCircleOutlined, DeleteOutlined
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import api from '../../services/api';
@@ -143,7 +143,29 @@ export default function ShipmentDetailPage() {
     const canAddItems = ['PENDING', 'WEIGHING'].includes(shipment.status);
     const canStartWeighing = shipment.status === 'PENDING';
     const canComplete = shipment.status === 'WEIGHING';
+    const canDelete = ['PENDING', 'WEIGHING'].includes(shipment.status);
     const isCompleted = shipment.status === 'COMPLETED';
+
+    const handleDeleteShipment = () => {
+        Modal.confirm({
+            title: 'Sevkiyatı Sil',
+            content: 'Bu sevkiyatı silmek istediğinize emin misiniz? Tüm içerik kalıcı olarak silinecektir.',
+            okText: 'Evet, Sil',
+            okType: 'danger',
+            cancelText: 'Vazgeç',
+            onOk: async () => {
+                setActionLoading(true);
+                try {
+                    await api.delete(`/shipments/${id}`);
+                    message.success('Sevkiyat silindi');
+                    navigate('/shipments');
+                } catch (error: any) {
+                    message.error(error.response?.data?.message || 'Sevkiyat silinemedi');
+                    setActionLoading(false);
+                }
+            }
+        });
+    };
 
     // Calculate totals
     const totalWeight = shipment.items.reduce((sum, item) => sum + (Number(item.actualWeight) || 0), 0);
@@ -231,6 +253,17 @@ export default function ShipmentDetailPage() {
                 <Tag color={statusColors[shipment.status]} style={{ fontSize: 14, padding: '2px 12px' }}>
                     {statusLabels[shipment.status]}
                 </Tag>
+                {canDelete && (
+                    <Button
+                        type="primary"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={handleDeleteShipment}
+                        loading={actionLoading}
+                    >
+                        Sil
+                    </Button>
+                )}
             </Space>
 
             <Card style={{ marginBottom: 16, borderRadius: 8 }}>

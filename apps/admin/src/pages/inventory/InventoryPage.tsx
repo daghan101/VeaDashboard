@@ -3,7 +3,7 @@ import {
     Table, Button, Modal, Form, InputNumber, Select, Space,
     Typography, message, Tag, Checkbox,
 } from 'antd';
-import { ReloadOutlined, ToolOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import api from '../../services/api';
 
@@ -130,13 +130,12 @@ export default function InventoryPage() {
             width: 100,
             render: (_, record) => (
                 <Button
-                    type="link"
-                    icon={<ToolOutlined />}
+                    type="text"
+                    icon={<SettingOutlined />}
                     onClick={() => openAdjust(record)}
-                    size="small"
-                >
-                    Ayarla
-                </Button>
+                    style={{ color: '#333', fontSize: '15px' }}
+                    title="Stok Ayarla"
+                />
             ),
         },
     ];

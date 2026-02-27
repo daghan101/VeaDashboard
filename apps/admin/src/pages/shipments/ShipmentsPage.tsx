@@ -4,7 +4,7 @@ import {
     Table, Button, Modal, Form, Select, InputNumber, Space,
     Typography, message, Tag,
 } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import api from '../../services/api';
@@ -140,6 +140,41 @@ export default function ShipmentsPage() {
                 const num = Number(val);
                 return isNaN(num) ? '—' : `₺${num.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`;
             },
+        },
+        {
+            title: 'İşlem',
+            key: 'actions',
+            width: 80,
+            render: (_, record) => {
+                const canDelete = ['PENDING', 'WEIGHING'].includes(record.status);
+                if (!canDelete) return '—';
+                return (
+                    <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            Modal.confirm({
+                                title: 'Sevkiyatı Sil',
+                                content: 'Bu sevkiyatı silmek istediğinize emin misiniz? Tanımlı tüm kalemler de silinecektir.',
+                                okText: 'Evet',
+                                okType: 'danger',
+                                cancelText: 'Hayır',
+                                onOk: async () => {
+                                    try {
+                                        await api.delete(`/shipments/${record.id}`);
+                                        message.success('Sevkiyat silindi');
+                                        fetchData();
+                                    } catch (error: any) {
+                                        message.error(error.response?.data?.message || 'Sevkiyat silinemedi');
+                                    }
+                                }
+                            });
+                        }}
+                    />
+                );
+            }
         },
     ];
 

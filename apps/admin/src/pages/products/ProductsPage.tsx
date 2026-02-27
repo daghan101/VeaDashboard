@@ -117,10 +117,11 @@ export default function ProductsPage() {
     const handleDelete = async (id: string) => {
         try {
             await api.delete(`/products/${id}`);
-            message.success('Ürün pasife alındı');
+            message.success('Ürün ve bağlı stok kaydı silindi (pasife alındı)');
             fetchProducts(categoryFilter, currentPage, pageSize, includeInactive);
-        } catch {
-            message.error('Silme başarısız');
+        } catch (error: any) {
+            const errorMsg = error.response?.data?.message || 'Silme başarısız';
+            message.error(errorMsg);
         }
     };
 

@@ -49,7 +49,13 @@ export class InventoryService {
      * Stok ayarlama - Negatif stoka izin verilir (Doküman kuralı)
      */
     async adjust(productId: string, adjustDto: AdjustInventoryDto) {
-        const { quantity, pieceCount, operation } = adjustDto;
+        let { quantity, pieceCount, operation } = adjustDto;
+
+        // Stok 0'a eşitlendiğinde eğer adet bilgisi girilmemişse,
+        // geride 11 adet 0 kilo gibi tutarsızlıklar kalmaması için adedi de sıfırlarız.
+        if (operation === 'SET' && quantity === 0 && (pieceCount === undefined || pieceCount === null)) {
+            pieceCount = 0;
+        }
 
         // Ürün var mı kontrol et
         const product = await this.prisma.product.findUnique({

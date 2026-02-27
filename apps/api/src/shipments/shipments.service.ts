@@ -181,4 +181,20 @@ export class ShipmentsService {
 
         return this.findOne(id);
     }
+
+    /**
+     * Sevkiyatı sil - Sadece PENDING veya WEIGHING durumundaysa
+     */
+    async remove(id: string) {
+        const shipment = await this.findOneRaw(id);
+
+        if (shipment.status === 'COMPLETED') {
+            throw new BadRequestException('Tamamlanmış sevkiyatlar silinemez. (Stoklar ve bakiyeler güncellenmiş durumdadır.)');
+        }
+
+        // ShipmentItem'lar şemada onDelete: Cascade ile bağlı olduğu için shipment silindiğinde onlar da silinir
+        return this.prisma.shipment.delete({
+            where: { id },
+        });
+    }
 }
