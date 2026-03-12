@@ -55,10 +55,13 @@ export default function TransactionsPage() {
     const { user } = useAuth();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [accounts, setAccounts] = useState<Account[]>([]);
+    const [customers, setCustomers] = useState<any[]>([]);
+    const [vendors, setVendors] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [form] = Form.useForm();
+    const [selectedBalance, setSelectedBalance] = useState<string | null>(null);
 
     // Filters
     const [filterAccount, setFilterAccount] = useState<string | undefined>(undefined);
@@ -73,12 +76,16 @@ export default function TransactionsPage() {
             if (filterType) params.type = filterType;
             if (filterConfirmed) params.confirmed = filterConfirmed;
 
-            const [txRes, accRes] = await Promise.all([
+            const [txRes, accRes, custRes, vendRes] = await Promise.all([
                 api.get('/transactions', { params }),
                 api.get('/accounts'),
+                api.get('/customers'),
+                api.get('/vendors'),
             ]);
             setTransactions(txRes.data);
             setAccounts(accRes.data);
+            setCustomers(custRes.data);
+            setVendors(vendRes.data);
         } catch {
             message.error('İşlemler yüklenemedi');
         } finally {
@@ -97,6 +104,7 @@ export default function TransactionsPage() {
             message.success('İşlem oluşturuldu');
             setModalOpen(false);
             form.resetFields();
+            setSelectedBalance(null);
             fetchData();
         } catch {
             message.error('İşlem oluşturulamadı');
@@ -159,7 +167,15 @@ export default function TransactionsPage() {
             dataIndex: 'description',
             key: 'description',
             ellipsis: true,
-            render: (val: string | null) => val || '—',
+            render: (val: string | null, record: any) => {
+                let desc = val || '—';
+                if (record.customer?.businessName) {
+                    desc = `Müşteri: ${record.customer.businessName} - ${desc}`;
+                } else if (record.vendor?.name) {
+                    desc = `Tedarikçi: ${record.vendor.name} - ${desc}`;
+                }
+                return desc;
+            },
         },
         {
             title: 'Kaynak',
@@ -274,15 +290,77 @@ export default function TransactionsPage() {
                                 else if (val === 'MANUAL') form.setFieldsValue({ type: undefined });
                             }}
                             options={[
-                                { value: 'ORDER', label: '📦 Sipariş → Tahsilat' },
-                                { value: 'SHIPMENT', label: '🚛 Sevkiyat → Ödeme' },
-                                { value: 'MANUAL', label: '✏️ Manuel' },
+                                { value: 'ORDER', label: 'Sipariş' },
+                                { value: 'SHIPMENT', label: 'Sevkiyat' },
+                                { value: 'MANUAL', label: 'Manuel' },
                             ]}
                         />
                     </Form.Item>
                     <Form.Item name="type" label="İşlem Tipi" rules={[{ required: true, message: 'Tip seçin' }]}>
                         <Select options={Object.entries(typeLabels).map(([value, label]) => ({ value, label }))} />
                     </Form.Item>
+
+                    <Form.Item
+                        noStyle
+                        shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}
+                    >
+                        {({ getFieldValue }) => {
+                            const type = getFieldValue('type');
+                            if (type === 'COLLECTION') {
+                                return (
+                                    <Form.Item name="customerId" label="Müşteri" rules={[{ required: true, message: 'Müşteri seçin' }]}>
+                                        <Select
+                                            showSearch
+                                            placeholder="Müşteri seçin"
+                                            optionFilterProp="label"
+                                            options={customers.map((c) => ({
+                                                value: c.id,
+                                                label: c.businessName,
+                                            }))}
+                                            onChange={(val) => {
+                                                const customer = customers.find(c => c.id === val);
+                                                if (customer) {
+                                                    setSelectedBalance(`Güncel Borcu: ₺${Number(customer.balanceTry).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`);
+                                                } else {
+                                                    setSelectedBalance(null);
+                                                }
+                                            }}
+                                        />
+                                    </Form.Item>
+                                );
+                            }
+                            if (type === 'PAYMENT') {
+                                return (
+                                    <Form.Item name="vendorId" label="Tedarikçi" rules={[{ required: true, message: 'Tedarikçi seçin' }]}>
+                                        <Select
+                                            showSearch
+                                            placeholder="Tedarikçi seçin"
+                                            optionFilterProp="label"
+                                            options={vendors.map((v) => ({
+                                                value: v.id,
+                                                label: v.name,
+                                            }))}
+                                            onChange={(val) => {
+                                                const vendor = vendors.find(v => v.id === val);
+                                                if (vendor) {
+                                                    setSelectedBalance(`Güncel Alacağı: ₺${Number(vendor.totalBalance).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`);
+                                                } else {
+                                                    setSelectedBalance(null);
+                                                }
+                                            }}
+                                        />
+                                    </Form.Item>
+                                );
+                            }
+                            return null;
+                        }}
+                    </Form.Item>
+
+                    {selectedBalance && (
+                        <div style={{ marginBottom: 16, marginTop: -16, color: '#1890ff', fontWeight: 500 }}>
+                            {selectedBalance}
+                        </div>
+                    )}
                     <Form.Item name="amount" label="Tutar" rules={[{ required: true, message: 'Tutar girin' }]}>
                         <InputNumber min={0.01} step={0.01} style={{ width: '100%' }} />
                     </Form.Item>

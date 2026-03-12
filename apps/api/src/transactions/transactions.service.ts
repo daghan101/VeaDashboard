@@ -34,9 +34,16 @@ export class TransactionsService {
                 referenceType,
                 maturityDate: maturityDate ? new Date(maturityDate) : null,
                 description,
+                customerId: createTransactionDto.customerId,
+                vendorId: createTransactionDto.vendorId,
                 isConfirmed: false,
             },
-            include: { account: true, user: { select: { id: true, name: true } } },
+            include: {
+                account: true,
+                user: { select: { id: true, name: true } },
+                customer: { select: { id: true, businessName: true } },
+                vendor: { select: { id: true, name: true } },
+            },
         });
     }
 
@@ -50,6 +57,8 @@ export class TransactionsService {
             include: {
                 account: { select: { id: true, name: true, currency: { select: { symbol: true } } } },
                 user: { select: { id: true, name: true } },
+                customer: { select: { id: true, businessName: true } },
+                vendor: { select: { id: true, name: true } },
             },
             orderBy: { createdAt: 'desc' },
         });
@@ -62,6 +71,8 @@ export class TransactionsService {
             include: {
                 account: true,
                 user: { select: { id: true, name: true } },
+                customer: { select: { id: true, businessName: true } },
+                vendor: { select: { id: true, name: true } },
             },
         });
 
@@ -85,17 +96,36 @@ export class TransactionsService {
             balanceChange = -balanceChange;
         }
 
-        const [updated] = await this.prisma.$transaction([
+        const txParams: any[] = [
             this.prisma.transaction.update({
                 where: { id },
                 data: { isConfirmed: true },
-                include: { account: true },
+                include: { account: true, customer: true, vendor: true },
             }),
             this.prisma.account.update({
                 where: { id: transaction.accountId },
                 data: { balance: { increment: balanceChange } },
             }),
-        ]);
+        ];
+
+        // Cari bakiyeleri düşür
+        if (transaction.type === 'COLLECTION' && transaction.customerId) {
+            txParams.push(
+                this.prisma.customer.update({
+                    where: { id: transaction.customerId },
+                    data: { balanceTry: { decrement: transaction.amount } },
+                })
+            );
+        } else if (transaction.type === 'PAYMENT' && transaction.vendorId) {
+            txParams.push(
+                this.prisma.vendor.update({
+                    where: { id: transaction.vendorId },
+                    data: { totalBalance: { decrement: transaction.amount } },
+                })
+            );
+        }
+
+        const [updated] = await this.prisma.$transaction(txParams);
 
         return updated;
     }

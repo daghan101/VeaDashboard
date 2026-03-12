@@ -11,6 +11,14 @@ export class CreateTransactionDto {
     @IsNumber()
     amount: number;
 
+    @IsString()
+    @IsOptional()
+    customerId?: string;
+
+    @IsString()
+    @IsOptional()
+    vendorId?: string;
+
     @IsEnum(['COLLECTION', 'PAYMENT', 'EXPENSE', 'TRANSFER'])
     type: TransactionType;
 

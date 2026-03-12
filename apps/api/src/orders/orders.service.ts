@@ -263,11 +263,6 @@ export class OrdersService {
         // Note: System-level transactions might require a default account mapping if we extend this.
         const defaultAdminUserId = order.createdById;
 
-        // Bulunamazsa TR Cüzdanı arıyoruz (veya ilk TRY Account'unu)
-        const tryAccount = await this.prisma.account.findFirst({
-            where: { currency: { code: 'TRY' } }
-        });
-
         const txParams: any[] = [
             this.prisma.order.update({
                 where: { id },
@@ -285,23 +280,8 @@ export class OrdersService {
             }),
         ];
 
-        // Eğer sistemde tanımlı bir Merkez hesap varsa finans kaydı atıyoruz
-        if (tryAccount && finalAmount > 0) {
-            txParams.push(
-                this.prisma.transaction.create({
-                    data: {
-                        accountId: tryAccount.id,
-                        userId: defaultAdminUserId,
-                        referenceId: order.id,
-                        referenceType: 'ORDER',
-                        amount: finalAmount,
-                        type: 'COLLECTION',
-                        isConfirmed: true,
-                        description: `Sipariş Teslimatı: ${order.customer?.businessName || 'Bilinmeyen Müşteri'}`
-                    }
-                })
-            );
-        }
+        // Eğer sistemde tanımlı bir Merkez hesap varsa finans kaydı atıyoruz mantığı KÖKTEN KALDIRILDI
+        // Artık sadece cari borca yazılır, kasa işlemi manuel yapılır.
 
         await this.prisma.$transaction(txParams);
 
