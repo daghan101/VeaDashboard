@@ -1,4 +1,4 @@
-# Zeytinoglu Et - Toptanci Yonetim Sistemi
+#Toptanci Yonetim Sistemi
 
 Guncel ve modern altyapi ile hazirlanmis toptan et satis yonetim projesidir. Et toptanciligi isletmesine yonelik kapsamli yonetim sistemi. Turborepo tabanli monorepo mimarisi ile gelistirilmistir.
 
